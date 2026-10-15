@@ -1,0 +1,33 @@
+Repository for the first homework of the Communication Networks class. In this homework the students will implement the dataplane of a router.
+
+
+Subiect 1-Forwrding
+
+Am verificat forwardarea pachetelor intre hosturi aflate in retele diferite folosind comanda ping. Pentru testare am trimis pachete intre hosturile h1-h2 si h0-h3 (ping h2 in host h1, ping h3 in host h0).
+Din screenshot se observa ca pachetele ajung la destinatie si se intorc sub forma de raspunsuri => routerele forwardeaza corect pachetele IP intre retele.
+Funcionarea corecta e evidentiata de faptul ca nu exista pierderi de pachete si ca traficul e bidirectional intre hosturi.
+
+
+Subiect 2 -LPM
+
+Pentru determinarea rutei optime am implementat algoritmul LPM cu un trie binar. O implementare liniara ar presupune parcurgerea intregii tabele de rutare pentru fiecare pachet, ceea ce ar fii ineficient si ar duce la o complexitate mult prea mare cand tabela contine un numar mare de intrari. 
+Prin utilizarea unui trie prefixele sunt inserate bit cu bit, de la cel mai semnificativ bit pana la lungimea mastii. La cautare, se parcurge trie-ul folosind bitii adresei destinatie si se retine ultima ruta valida intalnita (cea mai lunga portivire).
+Complexitate O(32).
+
+Subiect 3 -ARP
+
+Am implementat protocolul ARP pentru rezolvarea dinamica a adreselor MAC. Pentru testare am folosit comenzile : "ip neigh flush all" care sterge table ARP de pe host si arping 192.168.0.1 (acesta fiind gateway-ul hostului h0)
+In Wireshark avem:
+-pachete ARP Request ("Who has 192.168.0.1")
+-pachete ARP Reply ("192.168.0.1 is at ...").
+Routerul raspunde corect la cererile ARP destinate lui si trimite adrese MAC corespunzatoare.
+In plus intrarile sunt salvate in tabela ARP, pachetele sunt puse in coada daca nu exista o intrare ARP si dupa primirea unui ARP Reply pachetele sunt retransmise.
+
+Subiect 4 -ICMP
+
+Am implementat mesaje ICMP pentru semnalarea erorilor. Pentru testare am trimis pachete cu TTL foarte mic folosind "ping -t 1 h2" (de la h1-h2)
+Routerul decrementeaza TTL-ul, iar cand acesta ajunge la 0 pachetul e aruncat si se trimite un mesaj ICMP (Type 11 (Time Exceeded), Code 0).
+In screenshot se observa mesajul "Time to live exceeded" in terminal si pachetele ICMP corespunzatoare in Wireshark.
+
+
+
