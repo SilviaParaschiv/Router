@@ -1,31 +1,58 @@
+IPv4 Network Dataplane Router
 
-Subiect 1-Forwrding
+A low-level IPv4 router dataplane implemented in C. The project handles packet forwarding across a virtual network topology by directly processing Ethernet, IPv4, ARP, and ICMP headers.
 
-Am verificat forwardarea pachetelor intre hosturi aflate in retele diferite folosind comanda ping. Pentru testare am trimis pachete intre hosturile h1-h2 si h0-h3 (ping h2 in host h1, ping h3 in host h0).
-Din screenshot se observa ca pachetele ajung la destinatie si se intorc sub forma de raspunsuri => routerele forwardeaza corect pachetele IP intre retele.
-Funcionarea corecta e evidentiata de faptul ca nu exista pierderi de pachete si ca traficul e bidirectional intre hosturi.
+ Key Features
 
+IPv4 Packet Forwarding: Implements Longest Prefix Match (LPM) using a binary trie to select the appropriate route and next-hop interface.
+Dynamic ARP Resolution: Resolves IP addresses to MAC addresses, maintains an ARP cache, and queues packets while waiting for ARP replies.
+ICMP Messages: Handles Echo Reply (Type 0), Destination Unreachable (Type 3), and Time Exceeded (Type 11).
+Packet Validation: Verifies and recalculates IPv4 and ICMP checksums to detect corrupted packets.
+TTL Management: Decrements the IPv4 TTL and discards expired packets, returning the appropriate ICMP error message.
 
-Subiect 2 -LPM
+ Architecture & Forwarding Logic
 
-Pentru determinarea rutei optime am implementat algoritmul LPM cu un trie binar. O implementare liniara ar presupune parcurgerea intregii tabele de rutare pentru fiecare pachet, ceea ce ar fii ineficient si ar duce la o complexitate mult prea mare cand tabela contine un numar mare de intrari. 
-Prin utilizarea unui trie prefixele sunt inserate bit cu bit, de la cel mai semnificativ bit pana la lungimea mastii. La cautare, se parcurge trie-ul folosind bitii adresei destinatie si se retine ultima ruta valida intalnita (cea mai lunga portivire).
-Complexitate O(32).
+When a packet arrives, the router processes it through the following steps:
+Header Processing: Extracts Ethernet, IPv4, or ARP headers and handles network-to-host byte order conversion.
+ARP Processing: Responds to ARP requests addressed to the router, updates the ARP cache upon receiving replies, and forwards queued packets.
+IPv4 Validation: Verifies the IP header checksum and discards invalid packets.
+Local Delivery: Responds to ICMP Echo Requests addressed to the router's interfaces.
+TTL Check: Decrements TTL and sends an ICMP Time Exceeded message if the packet expires.
+Route Lookup: Uses LPM to find the best matching route. If no route exists, an ICMP Destination Unreachable message is generated.
+Packet Forwarding: Resolves the next-hop MAC address, updates the Ethernet header, and forwards the packet. If the MAC address is unknown, the packet is queued until ARP resolution completes.
 
-Subiect 3 -ARP
+ Testing & Results
 
-Am implementat protocolul ARP pentru rezolvarea dinamica a adreselor MAC. Pentru testare am folosit comenzile : "ip neigh flush all" care sterge table ARP de pe host si arping 192.168.0.1 (acesta fiind gateway-ul hostului h0)
-In Wireshark avem:
--pachete ARP Request ("Who has 192.168.0.1")
--pachete ARP Reply ("192.168.0.1 is at ...").
-Routerul raspunde corect la cererile ARP destinate lui si trimite adrese MAC corespunzatoare.
-In plus intrarile sunt salvate in tabela ARP, pachetele sunt puse in coada daca nu exista o intrare ARP si dupa primirea unui ARP Reply pachetele sunt retransmise.
+1. Packet Forwarding
 
-Subiect 4 -ICMP
+Tested connectivity between hosts in different networks using ping h2 from h1 and ping h3 from h0. Successful replies and the absence of packet loss confirmed correct, bidirectional forwarding between the hosts.
 
-Am implementat mesaje ICMP pentru semnalarea erorilor. Pentru testare am trimis pachete cu TTL foarte mic folosind "ping -t 1 h2" (de la h1-h2)
-Routerul decrementeaza TTL-ul, iar cand acesta ajunge la 0 pachetul e aruncat si se trimite un mesaj ICMP (Type 11 (Time Exceeded), Code 0).
-In screenshot se observa mesajul "Time to live exceeded" in terminal si pachetele ICMP corespunzatoare in Wireshark.
+2. Longest Prefix Match (LPM)
 
+Implemented LPM using a binary trie. Routing prefixes are inserted bit by bit, and route lookup follows the destination IP address bits while retaining the last valid matching route.
+Time complexity: (O(32)) for IPv4 addresses, since each address contains 32 bits.
+This avoids scanning the entire routing table for every incoming packet.
 
+3. ARP Resolution
 
+Tested dynamic MAC address resolution using:
+
+ip neigh flush all
+arping 192.168.0.1
+
+The tests generated ARP Requests (Who has 192.168.0.1?) and ARP Replies (192.168.0.1 is at ...), verified in Wireshark. The router responds to requests for its own addresses, caches learned mappings, and forwards queued packets after receiving the required ARP reply.
+
+4. ICMP Error Handling
+
+Tested TTL expiration using ping -t 1 h2 from h1. When the TTL expires, the router drops the packet and sends an ICMP Time Exceeded message (Type 11, Code 0). The error message was observed in the terminal and the corresponding ICMP packets were verified in Wireshark.
+
+ Tech Stack
+
+Language: C
+Concepts: IPv4 Routing, Ethernet, ARP, ICMP, Binary Tries, Packet Manipulation, Checksums, Queue Data Structures, Byte Order.
+
+ Build and Run
+
+Prerequisites: Linux, gcc, and make.
+Compile the router from the project root:
+make
